@@ -11,6 +11,8 @@ void Buzzer_Init(void)//蜂鸣器初始化
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	
 	GPIO_Init(GPIOB,&GPIO_InitStructure);
+	
+	GPIO_SetBits(GPIOB,GPIO_Pin_12);
 }
 
 void Buzzer_open(void)//打开蜂鸣器  发出连续两下滴滴的声音信号

@@ -16,7 +16,7 @@ uint8_t stop_num_key;//定时器计数值    1-1ms  10ms触发一次 用于按�
 uint8_t stop_num_seg;//定时器计数值    1-1ms  100ms触发一次 用于采集信息
 uint8_t stop_num_mot;//定时器计数值    1-1ms  100ms触发一次 用于实时为电机PWM赋值
 
-uint8_t stop_flag;//停止标志位 0-非停止状态 1-停止状态
+uint8_t stop_flag=1;//停止标志位 0-非停止状态 1-停止状态
 uint8_t buzzer_flag;//蜂鸣器标志位 停止状态下：1-蜂鸣状态（三声后制0）
 
 uint8_t mot_proc_flag;//电机驱动标志位
@@ -45,6 +45,10 @@ uint8_t speed_left;//小车左轮速度
 uint8_t speed_right;//小车右轮速度
 
 uint8_t i;//用于所有for循环
+
+uint8_t command_flag=0;//调参标志位  置1时改变key1、key2功能
+uint8_t command_option=0;//调参选项  key3更改
+float command[4]={0.1,0.1,0.1,10.0};
 /*------------------------------------------proc---------------------------------------------------*/
 void key_proc(void)//按键检测  key—1为OLED参数界面切换 key-2重置停止标志位
 {
@@ -55,17 +59,55 @@ void key_proc(void)//按键检测  key—1为OLED参数界面切换 key-2重置�
 	key_down=key_now & (key_old ^ key_now);//检测按键下降沿
 	key_old=key_now;
 	
-	if(key_down == 1)//key-1 OLED参数界面切换（切换时顺带清屏）
+	if(command_flag==0)//非调参时key1、key2、key3功能
 	{
-		oled_mod++;
-		oled_mod%=4;
-		OLED_Clear();
+		if(key_down == 1)//key-1 OLED参数界面切换（切换时顺带清屏）
+		{
+			oled_mod++;
+			oled_mod%=4;
+			OLED_Clear();
+		}
+		if(key_down == 2)//key-2 重置停止标志位（顺带蜂鸣器标志位）
+		{
+			if(stop_flag)stop_flag=0;
+			if(buzzer_flag)buzzer_flag=0;
+		}
+		if(oled_mod == 1)
+		{
+			if(key_down == 3)//key-3 进入调参界面
+			{
+				command_flag=1;
+			}
+		}
 	}
-	if(key_down == 2)//key-2 重置停止标志位（顺带蜂鸣器标志位）
+	
+	if(command_flag==1)//调参时key1、key2、key3功能
 	{
-		if(stop_flag)stop_flag=0;
-		if(buzzer_flag)buzzer_flag=0;
+		if(key_down == 1)//key-1 增大参数值
+		{
+			command[command_option-1]+=0.01;
+		}
+		if(key_down == 2)//key-2 减小参数值
+		{
+			command[command_option-1]-=0.01;
+		}
+		if(key_down == 3)//key-3 切换参数选项
+		{
+			command_option+=1;
+		}
+		if(command_option>=5)//调完参数返回
+		{
+			command_flag=0;
+			command_option=0;
+			Kp=command[0];
+			Ki=command[1];
+			Kd=command[2];
+			limit=command[3];
+		}
 	}
+	
+	
+	
 }
 
 void seg_proc(void)
@@ -85,28 +127,43 @@ void seg_proc(void)
 		OLED_ShowSignedNum(4, 8, GZ, 5);
 	}
 	
-	if(oled_mod==1)//pid参数显示
+	if(oled_mod==1)//pid参数显示&调参
 	{
-		OLED_ShowString(1,1,"Kp:");
-		OLED_ShowSignedNum(1, 7, Kp, 2);
-		OLED_ShowChar(1,10,'.');
-		OLED_ShowNum(1,11,Kp*1000,3);
-		
-		OLED_ShowString(2,1,"Ki:");
-		OLED_ShowSignedNum(2, 7, Ki, 2);
-		OLED_ShowChar(1,10,'.');
-		OLED_ShowNum(2,11,Kp*1000,3);
-		
-		OLED_ShowString(3,1,"Kd:");
-		OLED_ShowSignedNum(3, 7, Kd, 2);
-		OLED_ShowChar(1,10,'.');
-		OLED_ShowNum(3,11,Kp*1000,3);
-		
-		OLED_ShowString(4,1,"pp:");
-		OLED_ShowSignedNum(4, 7, limit, 2);
-		OLED_ShowChar(1,10,'.');
-		OLED_ShowNum(4,11,Kp*1000,3);
-	}
+			OLED_ShowString(1,2,"Kp:");
+			OLED_ShowSignedNum(1, 8, command[0], 2);
+			OLED_ShowChar(1,11,'.');
+			OLED_ShowNum(1,12,command[0]*1000,3);
+			
+			OLED_ShowString(2,2,"Ki:");
+			OLED_ShowSignedNum(2, 8, command[1], 2);
+			OLED_ShowChar(1,11,'.');
+			OLED_ShowNum(2,12,command[1]*1000,3);
+			
+			OLED_ShowString(3,2,"Kd:");
+			OLED_ShowSignedNum(3, 8, command[2], 2);
+			OLED_ShowChar(1,11,'.');
+			OLED_ShowNum(3,12,command[2]*1000,3);
+			
+			OLED_ShowString(4,2,"pp:");
+			OLED_ShowSignedNum(4, 8, command[3], 2);
+			OLED_ShowChar(1,11,'.');
+			OLED_ShowNum(4,12,command[3]*1000,3);
+			
+			if(command_option==0)
+			{
+				OLED_ShowChar(4,1,' ');
+			}
+			
+			if(command_flag == 1)
+			{
+				OLED_ShowChar(command_option,1,'>');
+				
+				if(command_option>1)
+				{
+					OLED_ShowChar(command_option-1,1,' ');
+				}
+			}
+		}
 	
 	if(oled_mod==2)//红外循迹检测显示
 	{
@@ -156,6 +213,8 @@ void seg_proc(void)
 		OLED_ShowString(4,1,"right:");
 		OLED_ShowNum(4,7,speed_right,3);
 	}
+	//红外循迹部分：
+	get_dat(tracking_dat);
 	//陀螺仪信息接收：
 	MPU6050_GetData(&AX, &AY, &AZ, &GX, &GY, &GZ);
 	//PID信息处理部分：
@@ -174,8 +233,6 @@ void mot_proc(void)
 	
 	if(stop_flag == 0)//运动状态
 	{
-		get_dat(tracking_dat);
-		
 		speed_left=speed_0 * (1.0+PID_out) * (0.5+((-AX)/2000.0));
 		//公式：左轮速度=基本速度*（1+pid算法输出值）*（0.5+坡度补偿值）
 		speed_right=speed_0 * (1.0-PID_out) * (0.5+((-AX)/2000.0));
