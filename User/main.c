@@ -35,14 +35,14 @@ uint8_t time;//利用tim3来测量MPU6050间隔时间
 uint32_t time_num;//利用tim3来测量pid间隔时间
 uint32_t time_dat;//利用tim3来测量pid间隔时间(复制用)
 
-float Kp=0.15;    //pid参数
+float Kp=0.17;    //pid参数
 float Ki=0.01;
 float Kd=0.05;
 float limit=0.3;
 
-float Kp_angle=0.01;    //pid参数
-float Ki_angle=0.008;
-float Kd_angle=0.008;
+float Kp_angle=0.03;    //pid参数
+float Ki_angle=0.001;
+float Kd_angle=0.005;
 float limit_angle=0.3;
 
 float PID_out;//pid算法输出值
@@ -61,7 +61,7 @@ uint8_t i;//用于所有for循环
 
 uint8_t command_flag=0;//调参标志位  置1时改变key1、key2功能
 uint8_t command_option=0;//调参选项  key3更改
-float command[4]={0.15,0.01,0.05,0.3};
+float command[4]={0.17,0.01,0.05,0.3};
 uint8_t speed_00=70;
 
 uint8_t start_mod=0;
@@ -291,14 +291,15 @@ void seg_proc(void)
 	//停止标志检测： 
 	//if(stop_flag==0)
 	//stop_flag=stop_get();
-	if (angle <= 10 && angle >= -10)
-	{
-		run_mod = stop_get();
-	}
-	else
-	{
-		run_mod = 1;
-	}
+	
+//	if (angle <= 5 && angle >= -5)
+//	{
+	run_mod = stop_get();
+//	}
+//	else
+//	{
+//		run_mod = 1;
+//	}
 }
 
 void mot_proc(void)
