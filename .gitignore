@@ -1,0 +1,53 @@
+# Keil MDK user-specific project settings
+*.uvoptx
+*.uvguix.*
+*.uvguix
+
+# Keil MDK build artifacts and output directories
+**/Objects/
+**/Listings/
+*.axf
+*.bin
+*.hex
+*.elf
+*.o
+*.d
+*.crf
+*.dep
+*.lnp
+*.map
+*.lst
+*.build_log.htm
+
+# TI Code Composer Studio build artifacts
+**/Debug/
+**/Release/
+**/profile/
+*.out
+*.obj
+*.pp
+*.asm
+*.mk
+*.opt
+*.cmd.genlibs
+*.linkInfo.xml
+*.launch
+
+# Temporary, backup, and editor files
+*.bak
+*.tmp
+*.log
+*~
+.vscode/
+.vs/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+Desktop.ini
+
+
+# Local debug probe settings
+JLinkLog.txt
+JLinkSettings.ini
+JLinkDevices.xml
