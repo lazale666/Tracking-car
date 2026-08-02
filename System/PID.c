@@ -1,16 +1,7 @@
 #include "stm32f10x.h"                  // Device header
-#include "Tracking.H"
-/*
-typedef struct
-{
-	float Kp,Ki,Kd;       //PID参数
-	float integral;       //积分项累计
-	float prev_error;     //上一次误差值
-	uint32_t last_time;   //上一次计算时间（mc）
-	float output_limit;   //输出限幅值
-	float integral_limit; //积分限幅值
-}PID_InitTypeDef;
-*/
+#include "Serial.H"
+
+extern int16_t K230_dx;
 
 float PID(float Kp,float Ki,float Kd,uint16_t time_dat,float limit)//pid算法
 {
@@ -21,7 +12,7 @@ float PID(float Kp,float Ki,float Kd,uint16_t time_dat,float limit)//pid算法
 	
 	static float filtered_deriv;//滤波
 	
-	float error = get_error() * 1.0;
+	float error = K230_dx * 1.0;
 	//求比例项：
 	p=Kp * error;
 	//求积分项：
