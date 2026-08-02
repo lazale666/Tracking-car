@@ -43,8 +43,8 @@ void Motor_Set_right(int8_t speed)//PA6 PA7为左轮控制引脚
 	}
 	if(speed<0)
 	{
-		GPIO_SetBits(GPIOA,GPIO_Pin_6);
-		GPIO_ResetBits(GPIOA,GPIO_Pin_7);
+		GPIO_SetBits(GPIOA,GPIO_Pin_7);
+		GPIO_ResetBits(GPIOA,GPIO_Pin_6);
 		PWM_Set_right(-speed);
 	}
 }

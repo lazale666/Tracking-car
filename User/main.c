@@ -7,14 +7,15 @@
 #include "Key.H"            //占用PB0、PB1(键码值分别为1、2)
 #include "MPU6050.H"        //占用PB10(SCL)、PB11(SDA)(硬件I2C)
 #include "Tracking.H"       //占用PA9、PA10、PA11、PA12、PB14、PB15
-#include "PID.H"            //无引脚占用  用于实现pid算法
+#include "PID.H"            //无占用  用于实现pid算法
 /*------------------------------------------data---------------------------------------------------*/
+uint8_t run_mod;
+
 uint8_t oled_mod;//oled_mod-0:MPU6050    run_mod-1:Kp、Ki、Kd、Ks(坡度补偿)、Kt(转弯补偿)    run_mod-2:turn right
 
 uint8_t stop_num_key;//定时器计数值    1-1ms  10ms触发一次 用于按键检测
 uint8_t stop_num_seg;//定时器计数值    1-1ms  100ms触发一次 用于采集信息
 uint8_t stop_num_mot;//定时器计数值    1-1ms  100ms触发一次 用于实时为电机PWM赋值
-uint16_t stop_num_rec;
 
 uint8_t stop_flag=1;//停止标志位 0-非停止状态 1-停止状态
 uint8_t buzzer_flag;//蜂鸣器标志位 停止状态下：1-蜂鸣状态（三声后制0）
@@ -30,15 +31,27 @@ uint8_t tracking_dat[]={0,0,0,0,0,0,0,0};//红外循迹返回值
 
 int16_t AX, AY, AZ, GX, GY, GZ;//陀螺仪读取值  AX可表示重力沿坡向下分量
 
+uint8_t time;//利用tim3来测量MPU6050间隔时间
 uint32_t time_num;//利用tim3来测量pid间隔时间
 uint32_t time_dat;//利用tim3来测量pid间隔时间(复制用)
 
-float Kp=0.6;    //pid参数
-float Ki=0.1;
-float Kd=0.3;
-float limit=1.0;
+float Kp=0.15;    //pid参数
+float Ki=0.01;
+float Kd=0.05;
+float limit=0.3;
+
+float Kp_angle=0.01;    //pid参数
+float Ki_angle=0.008;
+float Kd_angle=0.008;
+float limit_angle=0.3;
 
 float PID_out;//pid算法输出值
+
+float PID_out_angle;
+
+uint8_t D;
+
+float angle;
 
 uint8_t speed_0=70;//小车基本速度
 uint8_t speed_left;//小车左轮速度
@@ -46,17 +59,13 @@ uint8_t speed_right;//小车右轮速度
 
 uint8_t i;//用于所有for循环
 
-uint8_t command_flag=0;//PID调参标志位  置1时改变key1、key2功能
+uint8_t command_flag=0;//调参标志位  置1时改变key1、key2功能
 uint8_t command_option=0;//调参选项  key3更改
-float command[4]={0.6,0.1,0.3,1.0};//pid参数寄存器
-uint8_t speed_00=70;//速度基准值
+float command[4]={0.1,0.01,0.05,0.3};
+uint8_t speed_00=70;
 
-uint8_t command_flag_time_set;//time调参标志位  置1时改变key1、key2功能
-float time_set=5.0;//定时设定寄存值（单位：s）
-float time_set_data;//定时设定值（单位：s）
-uint8_t time_set_flag=0;//定时启动标志位 1-启动 0-关闭
-
-uint8_t record_time=0;//用于记录运行时间
+uint8_t start_mod=0;
+uint8_t mod_flag;
 /*------------------------------------------proc---------------------------------------------------*/
 void key_proc(void)//按键检测  key—1为OLED参数界面切换 key-2重置停止标志位
 {
@@ -67,39 +76,40 @@ void key_proc(void)//按键检测  key—1为OLED参数界面切换 key-2重置�
 	key_down=key_now & (key_old ^ key_now);//检测按键下降沿
 	key_old=key_now;
 	
-	Buzzer_open_key(key_down);
-	
-	if(command_flag==0 && command_flag_time_set==0)//非调参时key1、key2、key3功能
+	if(command_flag==0 && mod_flag==0)//非调参时key1、key2、key3功能
 	{
 		if(key_down == 1)//key-1 OLED参数界面切换（切换时顺带清屏）
 		{
 			oled_mod++;
-			oled_mod%=6;
+			oled_mod%=5;
 			OLED_Clear();
 		}
 		if(key_down == 2)//key-2 重置停止标志位（顺带蜂鸣器标志位）
 		{
-			if(stop_flag)stop_flag=0;
-			if(buzzer_flag)buzzer_flag=0;
-			record_time = 0;
+			if(stop_flag)stop_flag = 0;else stop_flag = 1;
+			if(buzzer_flag)buzzer_flag=0;else buzzer_flag = 1;
+		}
+		if(key_down == 3)//key-2 重置停止标志位（顺带蜂鸣器标志位）
+		{
+			angle = 0;
 		}
 		if(oled_mod == 1)
 		{
-			if(key_down == 3)//key-3 进入PID调参界面
+			if(key_down == 3)//key-3 进入调参界面
 			{
 				command_flag=1;
 			}
 		}
 		if(oled_mod == 4)
 		{
-			if(key_down == 3)//key-3 进入定时调参界面
+			if(key_down == 3)//key-3 进入模式切换界面
 			{
-				command_flag_time_set=1;
+				mod_flag=1;
 			}
 		}
 	}
 	
-	else if(command_flag==1)//PID调参时key1、key2、key3功能
+	if(command_flag==1)//调参时key1、key2、key3功能
 	{
 		if(key_down == 1)//key-1 增大参数值
 		{
@@ -117,28 +127,30 @@ void key_proc(void)//按键检测  key—1为OLED参数界面切换 key-2重置�
 		{
 			command_flag=0;
 			command_option=0;
-			Kp=command[0];//pid寄存器赋值
+			Kp=command[0];
 			Ki=command[1];
 			Kd=command[2];
 			limit=command[3];
 		}
 	}
 	
-	else if(command_flag_time_set==1)//定时调参时key1、key2、key3功能
+	if(mod_flag==1)//调参时key1、key2、key3功能
 	{
 		if(key_down == 1)//key-1 增大参数值
 		{
-			time_set+=0.1;
+			start_mod += 1;
+			if(start_mod > 4)start_mod = 1;
 		}
 		if(key_down == 2)//key-2 减小参数值
 		{
-			time_set-=0.1;
+			start_mod -= 1;
+			if(start_mod < 1)start_mod = 4;
 		}
-		if(key_down == 3)//key-3 定时开始倒计时
+		if(key_down == 3)//key-3 切换参数选项
 		{
-			time_set_data=time_set;//寄存器赋值
-			time_set_flag=1;//倒计时启动标志位
-			
+			mod_flag = 0;
+			if(stop_flag)stop_flag=0;
+			if(buzzer_flag)buzzer_flag=0;
 		}
 	}
 }
@@ -147,14 +159,13 @@ void seg_proc(void)
 {
 	if(seg_proc_flag) return;
 	seg_proc_flag=1;
-	//OLED信息处理部分（未启动）：
+	//OLED信息处理部分：
 	if(oled_mod==0)//MPU6050参数显示
 	{
 		OLED_ShowString(1,1,"MPU6050");
 		
-		OLED_ShowSignedNum(2, 1, AX, 5);
-		OLED_ShowSignedNum(3, 1, AY, 5);
-		OLED_ShowSignedNum(4, 1, AZ, 5);
+		OLED_ShowSignedNum(2, 1, angle, 5);
+		
 		OLED_ShowSignedNum(2, 8, GX, 5);
 		OLED_ShowSignedNum(3, 8, GY, 5);
 		OLED_ShowSignedNum(4, 8, GZ, 5);
@@ -228,7 +239,6 @@ void seg_proc(void)
 		OLED_ShowString(4,8,"buzz:");
 		OLED_ShowNum(4,14,buzzer_flag,1);
 	}
-	
 	if(oled_mod==3)//pid输出及速度
 	{
 		OLED_ShowString(1,1,"PID:");
@@ -259,37 +269,29 @@ void seg_proc(void)
 		OLED_ShowNum(4,7,speed_right,3);
 	}
 	
-	if(oled_mod==4)//定时界面
+	if(oled_mod==4)//v0
 	{
-		if(time_set_flag == 0)
-		{
-			OLED_ShowString(1,1,"Time Set:");
-			OLED_ShowNum(2,1,(uint16_t)(time_set*1000),5);
-		}
-		if(time_set_flag == 1)
-		{
-			OLED_ShowString(1,1,"Time Set:");
-			OLED_ShowNum(2,1,(uint16_t)(time_set_data*1000),5);
-		}
+		OLED_ShowString(1,1,"start mod:");
+		OLED_ShowNum(2,1,start_mod+1,3);
 	}
-	
-	if(oled_mod==5)//运行时长累计
-	{
-			OLED_ShowString(1,1,"Time Record:");
-			OLED_ShowNum(2,1,record_time,5);
-	}
-	
 	//红外循迹部分：
 	get_dat(tracking_dat);
 	//陀螺仪信息接收：
 	MPU6050_GetData(&AX, &AY, &AZ, &GX, &GY, &GZ);
+	//偏转角度计算：
+	angle += (GZ - 14) * time * 6.090226 / 100000;
+	time = 0;
+	if(angle >=  90)angle -= 180;
+	if(angle <= -90)angle += 180;
 	//PID信息处理部分：
 	time_dat=time_num;
 	time_num=0;
 	PID_out=PID(Kp,Ki,Kd,time_dat,limit);
+	PID_out_angle=PID_angle(Kp_angle,Ki_angle,Kd_angle,time_dat,limit_angle,angle);//pid算法
 	//停止标志检测： 
-	if(stop_flag==0)
-		stop_flag=stop_get();
+	//if(stop_flag==0)
+	//stop_flag=stop_get();
+	run_mod=stop_get();
 }
 
 void mot_proc(void)
@@ -299,16 +301,28 @@ void mot_proc(void)
 	
 	if(stop_flag == 0)//运动状态
 	{
-		speed_left=speed_0 * (0.65+PID_out) * (0.5+((-AX)/3000.0));
-		//公式：左轮速度=基本速度*（0.65+pid算法输出值）*（0.5+坡度补偿值）
-		speed_right=speed_0 * (0.65-PID_out) * (0.5+((-AX)/3000.0));
-		//公式：右轮速度=基本速度*（0.65-pid算法输出值）*（0.5+坡度补偿值）
+		if(run_mod == 0)
+		{
+			speed_left=speed_0 * (0.5+PID_out);
+			//公式：左轮速度=基本速度*（1+pid算法输出值）
+			speed_right=speed_0 * (0.5-PID_out);
+			//公式：右轮速度=基本速度*（1-pid算法输出值
 			Motor_Set_left(speed_left);//输入左轮速度
 			Motor_Set_right(speed_right);//输入右轮速度
+		}
+		if(run_mod == 1)
+		{
+			speed_left=speed_0 * (0.5+PID_out_angle);
+			//公式：左轮速度=基本速度*（1+pid算法输出值）
+			speed_right=speed_0 * (0.5-PID_out_angle);
+			//公式：右轮速度=基本速度*（1-pid算法输出值
+			Motor_Set_left(speed_left);//输入左轮速度
+			Motor_Set_right(speed_right);//输入右轮速度
+		}
 	}
 	if(stop_flag == 1)//停车状态
 	{
-		speed_left=0;//速度归零
+		speed_left=0;
 		speed_right=0;
 		
 		Motor_Set_left(speed_left);
@@ -334,6 +348,10 @@ int main(void)
 	MPU6050_Init(); //陀螺仪初始化
 	Key_Init();     //按键初始化
 	Tracking_Init();//红外循迹初始化
+	
+	MPU6050_GetData(&AX, &AY, &AZ, &GX, &GY, &GZ);
+	
+	D = GZ;
 	while(1)
 	{
 		key_proc();   //循环按键检测
@@ -347,24 +365,11 @@ void TIM3_IRQHandler(void)
 	if(TIM_GetITStatus(TIM3,TIM_IT_Update) == SET)
 	{
 		time_num++;//测量时间，用于检测pid的dt来求积分
+		time++;
 		
 		if(++stop_num_key>=10){stop_num_key=0;key_proc_flag=0;}//按键检测延时  10ms
-		if(++stop_num_seg>=10){stop_num_seg=0;seg_proc_flag=0;}//信息检测延时  100ms
-		{stop_num_mot=0;mot_proc_flag=0;}//电机速度更新延时
-		
-		if(++stop_num_rec>=1000){if(stop_flag == 0){record_time++;}}
-		
-		if(time_set_flag == 1 && time_set_data>0){time_set_data-=0.001;}//定时功能  精度0.001s  即1ms
-		else if(time_set_data <= 0)//倒计时结束
-			{
-				time_set_flag = 0;//停止倒计时  标志位置0
-				command_flag_time_set=0;//time调参标志位置0  恢复原始按键功能
-				Buzzer_open_low();//启动时蜂鸣器鸣叫
-				if(stop_flag)stop_flag=0;//停车标志位清零
-				if(buzzer_flag)buzzer_flag=0;//停车蜂鸣器标志位清零
-				time_set_data=time_set;//倒计时数值复原
-				record_time = 0;//时间记录清零
-			}
+		{stop_num_seg=0;seg_proc_flag=0;}//信息检测延时  100ms
+		{stop_num_mot=0;mot_proc_flag=0;}//电机速度更新延时  100ms
 		
 		TIM_ClearITPendingBit(TIM3,TIM_IT_Update);//清除中断标志位
 	}
