@@ -2,6 +2,6 @@
 #define _Buzzer_H_
 
 void Buzzer_Init(void);
-void Buzzer_open(void);
+void buzzer_set(uint8_t setdata);
 
 #endif

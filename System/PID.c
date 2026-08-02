@@ -6,13 +6,13 @@ extern int16_t K230_dx;
 float PID(float Kp,float Ki,float Kd,uint16_t time_dat,float limit)//pid算法
 {
 	float p,i,d,out;
-	float integral;//积分
+	static float integral = 0.0f;//积分
 	float derivative;//微分
 	static float error_old;//上一次误差值
 	
 	static float filtered_deriv;//滤波
 	
-	float error = K230_dx * 1.0;
+	float error = K230_dx * 0.03;
 	//求比例项：
 	p=Kp * error;
 	//求积分项：
@@ -43,13 +43,13 @@ float PID(float Kp,float Ki,float Kd,uint16_t time_dat,float limit)//pid算法
 float PID_angle(float Kp,float Ki,float Kd,uint16_t time_dat,float limit,float angle)//pid算法
 {
 	float p,i,d,out;
-	float integral;//积分
+	static float integral = 0.0f;//积分
 	float derivative;//微分
 	static float error_old;//上一次误差值
 	
 	static float filtered_deriv;//滤波
 	
-	float error = angle * 1.0;
+	float error = angle * 0.1;
 	//求比例项：
 	p=Kp * error;
 	//求积分项：
@@ -75,4 +75,11 @@ float PID_angle(float Kp,float Ki,float Kd,uint16_t time_dat,float limit,float a
 	if(out<-(limit * 2))out=-(limit * 2);
 	
 	return out;
+}
+
+float angle_do(float angle)
+{
+	if(angle >  180.0){angle-=360.0;}
+	if(angle < -180.0){angle+=360.0;}
+	return angle;
 }

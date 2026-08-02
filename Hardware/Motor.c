@@ -46,14 +46,14 @@ void Motor_Set_right(int8_t speed)//PB14(BIN1-1) PB13(BIN2-1)为右轮控制引�
 {
 	if(speed >= 0)
 	{
-		GPIO_SetBits(GPIOB, GPIO_Pin_14);
-		GPIO_ResetBits(GPIOB, GPIO_Pin_13);
+		GPIO_SetBits(GPIOB, GPIO_Pin_13);
+		GPIO_ResetBits(GPIOB, GPIO_Pin_14);
 		PWM_Set_right(speed);
 	}
 	if(speed < 0)
 	{
-		GPIO_SetBits(GPIOB, GPIO_Pin_13);
-		GPIO_ResetBits(GPIOB, GPIO_Pin_14);
+		GPIO_SetBits(GPIOB, GPIO_Pin_14);
+		GPIO_ResetBits(GPIOB, GPIO_Pin_13);
 		PWM_Set_right(-speed);
 	}
 }

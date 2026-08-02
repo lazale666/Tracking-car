@@ -15,14 +15,10 @@ void Buzzer_Init(void)//蜂鸣器初始化
 	GPIO_SetBits(GPIOB,GPIO_Pin_12);
 }
 
-void Buzzer_open(void)//打开蜂鸣器  发出连续两下滴滴的声音信号
+void buzzer_set(uint8_t setdata)
 {
+	if(setdata)
 	GPIO_ResetBits(GPIOB,GPIO_Pin_12);
-	Delay_ms(100);
+	else
 	GPIO_SetBits(GPIOB,GPIO_Pin_12);
-	Delay_ms(100);
-	GPIO_ResetBits(GPIOB,GPIO_Pin_12);
-	Delay_ms(100);
-	GPIO_SetBits(GPIOB,GPIO_Pin_12);
-	Delay_ms(700);
 }
