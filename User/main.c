@@ -9,7 +9,6 @@
 #include "Tracking.H"       //占用PA9、PA10、PA11、PA12、PB14、PB15
 #include "PID.H"            //无占用  用于实现pid算法
 /*------------------------------------------data---------------------------------------------------*/
-uint8_t open_flag;//reset
 uint8_t oled_mod;//oled_mod-0:MPU6050    run_mod-1:Kp、Ki、Kd、Ks(坡度补偿)、Kt(转弯补偿)    run_mod-2:turn right
 
 uint8_t stop_num_key;//定时器计数值    1-1ms  10ms触发一次 用于按键检测
@@ -26,21 +25,21 @@ uint8_t seg_proc_flag;//信息检测驱动标志位
 uint8_t key_proc_flag;//按键检测驱动标志位
 uint8_t key_old,key_now,key_down,key_up;//下降沿检测用
 
-uint8_t tracking_dat[]={0,0,0,0,0,0};//红外循迹返回值
+uint8_t tracking_dat[]={0,0,0,0,0,0,0,0};//红外循迹返回值
 
 int16_t AX, AY, AZ, GX, GY, GZ;//陀螺仪读取值  AX可表示重力沿坡向下分量
 
 uint32_t time_num;//利用tim3来测量pid间隔时间
 uint32_t time_dat;//利用tim3来测量pid间隔时间(复制用)
 
-float Kp=0.1;    //pid参数
-float Ki=0.1;
-float Kd=0.1;
-float limit=10.0;
+float Kp=0.6;    //pid参数
+float Ki=0.4;
+float Kd=0.4;
+float limit=2.0;
 
 float PID_out;//pid算法输出值
 
-uint8_t speed_0=50;//小车基本速度
+uint8_t speed_0=40;//小车基本速度
 uint8_t speed_left;//小车左轮速度
 uint8_t speed_right;//小车右轮速度
 
@@ -48,7 +47,7 @@ uint8_t i;//用于所有for循环
 
 uint8_t command_flag=0;//调参标志位  置1时改变key1、key2功能
 uint8_t command_option=0;//调参选项  key3更改
-float command[4]={0.1,0.1,0.1,10.0};
+float command[4]={0.6,0.4,0.4,2.0};
 /*------------------------------------------proc---------------------------------------------------*/
 void key_proc(void)//按键检测  key—1为OLED参数界面切换 key-2重置停止标志位
 {
@@ -168,7 +167,7 @@ void seg_proc(void)
 	if(oled_mod==2)//红外循迹检测显示
 	{
 		OLED_ShowString(1,1,"Trackig:");
-		for(i=0;i<6;i++)
+		for(i=0;i<4;i++)
 		{
 			if(tracking_dat[i]==1)
 			{
@@ -179,10 +178,21 @@ void seg_proc(void)
 				OLED_ShowNum(2,(2*i)+1,0,1);
 			}
 		}
-		OLED_ShowString(3,1,"stop:");
-		OLED_ShowNum(3,6,stop_flag,1);
-		OLED_ShowString(3,8,"buzz:");
-		OLED_ShowNum(3,14,buzzer_flag,1);
+		for(i=7;i>=4;i--)
+		{
+			if(tracking_dat[i]==1)
+			{
+				OLED_ShowNum(3,(2*(i-4))+1,i+1,1);
+			}
+			else
+			{
+				OLED_ShowNum(3,(2*(i-4))+1,0,1);
+			}
+		}
+		OLED_ShowString(4,1,"stop:");
+		OLED_ShowNum(4,6,stop_flag,1);
+		OLED_ShowString(4,8,"buzz:");
+		OLED_ShowNum(4,14,buzzer_flag,1);
 	}
 	if(oled_mod==3)//pid输出及速度
 	{
@@ -237,8 +247,8 @@ void mot_proc(void)
 		//公式：左轮速度=基本速度*（1+pid算法输出值）*（0.5+坡度补偿值）
 		speed_right=speed_0 * (1.0-PID_out) * (0.5+((-AX)/2000.0));
 		//公式：右轮速度=基本速度*（1-pid算法输出值）*（0.5+坡度补偿值）
-		Motor_Set_left(speed_left);//输入左轮速度
-		Motor_Set_right(speed_right);//输入右轮速度
+			Motor_Set_left(speed_left);//输入左轮速度
+			Motor_Set_right(speed_right);//输入右轮速度
 	}
 	if(stop_flag == 1)//停车状态
 	{
@@ -285,7 +295,6 @@ void TIM3_IRQHandler(void)
 		if(++stop_num_key>=10){stop_num_key=0;key_proc_flag=0;}//按键检测延时  10ms
 		if(++stop_num_seg>=100){stop_num_seg=0;seg_proc_flag=0;}//信息检测延时  100ms
 		if(++stop_num_mot>=100){stop_num_mot=0;mot_proc_flag=0;}//电机速度更新延时  100ms
-		
 		
 		TIM_ClearITPendingBit(TIM3,TIM_IT_Update);//清除中断标志位
 	}

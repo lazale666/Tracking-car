@@ -1,6 +1,6 @@
 #include "stm32f10x.h"                  // Device header
 
-void Tracking_Init(void) //初始化PA9、PA10、PA11、PA12、PB14、PB15作红外检测引脚
+void Tracking_Init(void) //初始化PA9、PA10、PA11、PA12、PB6、PB7、PB14、PB15作红外检测引脚
 {
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA,ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB,ENABLE);
@@ -12,7 +12,7 @@ void Tracking_Init(void) //初始化PA9、PA10、PA11、PA12、PB14、PB15作红
 	
 	GPIO_Init(GPIOA,&GPIO_Initstructurn);
 	
-	GPIO_Initstructurn.GPIO_Pin  =GPIO_Pin_14 | GPIO_Pin_15;
+	GPIO_Initstructurn.GPIO_Pin  =GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_14 | GPIO_Pin_15;
 	
 	GPIO_Init(GPIOB,&GPIO_Initstructurn);
 }
@@ -31,26 +31,28 @@ void get_dat(uint8_t *tracking_dat)
 	else tracking_dat[4]=1;
 	if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_12)==0)tracking_dat[5]=0;
 	else tracking_dat[5]=1;
+	if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_6)==0)tracking_dat[6]=0;
+	else tracking_dat[6]=1;
+	if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_7)==0)tracking_dat[7]=0;
+	else tracking_dat[7]=1;
 }
 
-int8_t get_error(void)//分别为PB14、PB15、PA9、PA10、PA11、PA12赋值
-	                    //       -3   -2    -1    +1    +2    +3
+int8_t get_error(void)//分别为PA9、PA10、PB14、PB15、PB6、PB7、PA11、PA12赋值
+	                    //       -2   -1    +1    +2    -2   -1   +1    +2
 {
 	int8_t turn_dat=0;
 	
-	if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_14)==1)turn_dat-=3;
-	if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_15)==1)turn_dat-=2;
-	if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_9)==1)turn_dat-=1;
-	if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_10)==1)turn_dat+=1;
-	if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_11)==1)turn_dat+=2;
-	if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_12)==1)turn_dat+=3;
+	if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_14)==1 || GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_11)==1)turn_dat+=2;
+	if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_15)==1 || GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_12)==1)turn_dat+=1;
+	if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_9 )==1 || GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_6 )==1)turn_dat-=1;
+	if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_10)==1 || GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_7 )==1)turn_dat-=2;
 	
 	return turn_dat;
 }
 
-uint8_t stop_get(void)//停车检测    当PA9  PA10同时收到信号时，表示出现横置黑线（停车标识）
+uint8_t stop_get(void)//停车检测    当PB15  PA9同时收到信号时，表示出现横置黑线（停车标识）
 {
-	if(GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_9)==0 && GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_10)==0)
+	if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_14)==1 && GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_15)==1 && GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_9)==1 && GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_10)==1)
 		return 1;
 	else
 		return 0;
