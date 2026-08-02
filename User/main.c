@@ -139,14 +139,9 @@ void key_proc(void)//按键检测  key—1为OLED参数界面切换 key-2重置�
 		if(key_down == 1)//key-1 增大参数值
 		{
 			start_mod += 1;
-			if(start_mod > 4)start_mod = 1;
+			start_mod %= 2;
 		}
 		if(key_down == 2)//key-2 减小参数值
-		{
-			start_mod -= 1;
-			if(start_mod < 1)start_mod = 4;
-		}
-		if(key_down == 3)//key-3 切换参数选项
 		{
 			mod_flag = 0;
 			if(stop_flag)stop_flag=0;
@@ -272,7 +267,7 @@ void seg_proc(void)
 	if(oled_mod==4)//v0
 	{
 		OLED_ShowString(1,1,"start mod:");
-		OLED_ShowNum(2,1,start_mod+1,3);
+		OLED_ShowNum(2,1,start_mod+1,1);
 	}
 	//红外循迹部分：
 	get_dat(tracking_dat);
@@ -281,25 +276,25 @@ void seg_proc(void)
 	//偏转角度计算：
 	angle += (GZ - 14) * time * 6.090226 / 100000;
 	time = 0;
-	if(angle >=  90)angle -= 180;
-	if(angle <= -90)angle += 180;
+	if(start_mod == 0)
+	{
+		if(angle >=  90)angle -= 180;
+		if(angle <= -90)angle += 180;
+	}
+	if(start_mod == 1)
+	{
+		if(angle >=   128.659808)angle -= 257.319616;
+		if(angle <=  -128.659808)angle += 257.319616;
+	}
+	
 	//PID信息处理部分：
 	time_dat=time_num;
 	time_num=0;
 	PID_out=PID(Kp,Ki,Kd,time_dat,limit);
 	PID_out_angle=PID_angle(Kp_angle,Ki_angle,Kd_angle,time_dat,limit_angle,angle);
 	//停止标志检测： 
-	//if(stop_flag==0)
-	//stop_flag=stop_get();
-	
-//	if (angle <= 5 && angle >= -5)
-//	{
 	run_mod = stop_get();
-//	}
-//	else
-//	{
-//		run_mod = 1;
-//	}
+	//run_mod = Tracking_MPU();
 }
 
 void mot_proc(void)

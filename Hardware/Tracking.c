@@ -61,3 +61,17 @@ uint8_t stop_get(void)//停车检测    当PB15  PA9同时收到信号时，表�
 	else
 		return 0;
 }
+
+int8_t Tracking_MPU(void)
+{
+	int8_t dat;
+	for(int8_t i = 0;i<=9;i++)
+	{
+		if(stop_get())dat += 1;
+	}
+	if(dat >= 5)//走循迹
+		return 1;
+	else        //走直线
+		return 0;
+}
+
