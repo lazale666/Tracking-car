@@ -33,13 +33,13 @@ uint32_t time_num;//利用tim3来测量pid间隔时间
 uint32_t time_dat;//利用tim3来测量pid间隔时间(复制用)
 
 float Kp=0.6;    //pid参数
-float Ki=0.4;
-float Kd=0.4;
-float limit=2.0;
+float Ki=0.1;
+float Kd=0.3;
+float limit=1.0;
 
 float PID_out;//pid算法输出值
 
-uint8_t speed_0=40;//小车基本速度
+uint8_t speed_0=70;//小车基本速度
 uint8_t speed_left;//小车左轮速度
 uint8_t speed_right;//小车右轮速度
 
@@ -47,7 +47,8 @@ uint8_t i;//用于所有for循环
 
 uint8_t command_flag=0;//调参标志位  置1时改变key1、key2功能
 uint8_t command_option=0;//调参选项  key3更改
-float command[4]={0.6,0.4,0.4,2.0};
+float command[4]={0.6,0.1,0.3,1.0};
+uint8_t speed_00=70;
 /*------------------------------------------proc---------------------------------------------------*/
 void key_proc(void)//按键检测  key—1为OLED参数界面切换 key-2重置停止标志位
 {
@@ -104,9 +105,6 @@ void key_proc(void)//按键检测  key—1为OLED参数界面切换 key-2重置�
 			limit=command[3];
 		}
 	}
-	
-	
-	
 }
 
 void seg_proc(void)
@@ -223,6 +221,12 @@ void seg_proc(void)
 		OLED_ShowString(4,1,"right:");
 		OLED_ShowNum(4,7,speed_right,3);
 	}
+	
+	if(oled_mod==4)//v0
+	{
+		OLED_ShowString(1,1,"speed 0:");
+		OLED_ShowNum(2,1,speed_00,3);
+	}
 	//红外循迹部分：
 	get_dat(tracking_dat);
 	//陀螺仪信息接收：
@@ -243,9 +247,9 @@ void mot_proc(void)
 	
 	if(stop_flag == 0)//运动状态
 	{
-		speed_left=speed_0 * (1.0+PID_out) * (0.5+((-AX)/2000.0));
+		speed_left=speed_0 * (0.65+PID_out) * (0.5+((-AX)/3000.0));
 		//公式：左轮速度=基本速度*（1+pid算法输出值）*（0.5+坡度补偿值）
-		speed_right=speed_0 * (1.0-PID_out) * (0.5+((-AX)/2000.0));
+		speed_right=speed_0 * (0.65-PID_out) * (0.5+((-AX)/3000.0));
 		//公式：右轮速度=基本速度*（1-pid算法输出值）*（0.5+坡度补偿值）
 			Motor_Set_left(speed_left);//输入左轮速度
 			Motor_Set_right(speed_right);//输入右轮速度
@@ -293,8 +297,8 @@ void TIM3_IRQHandler(void)
 		time_num++;//测量时间，用于检测pid的dt来求积分
 		
 		if(++stop_num_key>=10){stop_num_key=0;key_proc_flag=0;}//按键检测延时  10ms
-		if(++stop_num_seg>=100){stop_num_seg=0;seg_proc_flag=0;}//信息检测延时  100ms
-		if(++stop_num_mot>=100){stop_num_mot=0;mot_proc_flag=0;}//电机速度更新延时  100ms
+		{stop_num_seg=0;seg_proc_flag=0;}//信息检测延时  100ms
+		{stop_num_mot=0;mot_proc_flag=0;}//电机速度更新延时  100ms
 		
 		TIM_ClearITPendingBit(TIM3,TIM_IT_Update);//清除中断标志位
 	}
