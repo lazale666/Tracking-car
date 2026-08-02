@@ -61,7 +61,7 @@ uint8_t i;//用于所有for循环
 
 uint8_t command_flag=0;//调参标志位  置1时改变key1、key2功能
 uint8_t command_option=0;//调参选项  key3更改
-float command[4]={0.1,0.01,0.05,0.3};
+float command[4]={0.15,0.01,0.05,0.3};
 uint8_t speed_00=70;
 
 uint8_t start_mod=0;
@@ -287,11 +287,18 @@ void seg_proc(void)
 	time_dat=time_num;
 	time_num=0;
 	PID_out=PID(Kp,Ki,Kd,time_dat,limit);
-	PID_out_angle=PID_angle(Kp_angle,Ki_angle,Kd_angle,time_dat,limit_angle,angle);//pid算法
+	PID_out_angle=PID_angle(Kp_angle,Ki_angle,Kd_angle,time_dat,limit_angle,angle);
 	//停止标志检测： 
 	//if(stop_flag==0)
 	//stop_flag=stop_get();
-	run_mod=stop_get();
+	if (angle <= 10 && angle >= -10)
+	{
+		run_mod = stop_get();
+	}
+	else
+	{
+		run_mod = 1;
+	}
 }
 
 void mot_proc(void)
@@ -301,7 +308,7 @@ void mot_proc(void)
 	
 	if(stop_flag == 0)//运动状态
 	{
-		if(run_mod == 0)
+		if(run_mod == 0)	// 直线
 		{
 			speed_left=speed_0 * (0.5+PID_out);
 			//公式：左轮速度=基本速度*（1+pid算法输出值）
@@ -310,11 +317,11 @@ void mot_proc(void)
 			Motor_Set_left(speed_left);//输入左轮速度
 			Motor_Set_right(speed_right);//输入右轮速度
 		}
-		if(run_mod == 1)
+		if(run_mod == 1)	// 循迹
 		{
-			speed_left=speed_0 * (0.5+PID_out_angle);
+			speed_left=speed_0 * (0.7+PID_out_angle);
 			//公式：左轮速度=基本速度*（1+pid算法输出值）
-			speed_right=speed_0 * (0.5-PID_out_angle);
+			speed_right=speed_0 * (0.7-PID_out_angle);
 			//公式：右轮速度=基本速度*（1-pid算法输出值
 			Motor_Set_left(speed_left);//输入左轮速度
 			Motor_Set_right(speed_right);//输入右轮速度
