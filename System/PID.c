@@ -21,7 +21,7 @@ float PID(float Kp,float Ki,float Kd,uint16_t time_dat,float limit)//pid算法
 	
 	static float filtered_deriv;//滤波
 	
-	float error = get_dat() * 1.0;
+	float error = get_error() * 1.0;
 	//求比例项：
 	p=Kp * error;
 	//求积分项：

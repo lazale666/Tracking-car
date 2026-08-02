@@ -2,7 +2,8 @@
 #define _Tracking_H_
 
 void Tracking_Init(void);
-uint8_t get_dat(void);
+void get_dat(uint8_t *tracking_dat);
+int8_t get_error(void);
 uint8_t stop_get(void);
 
 #endif
